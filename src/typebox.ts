@@ -58,6 +58,22 @@ export type Assert<T, E> = T extends E ? T : never
 export type Evaluate<T> = T extends infer O ? { [K in keyof O]: O[K] } : never
 export type Ensure<T> = T extends infer U ? U : never
 // --------------------------------------------------------------------------
+// Increment
+// --------------------------------------------------------------------------
+export type IncrementBase = { m: string; t: string }
+export type IncrementBase16 = { m: 'F'; t: '01'; '0': '1'; '1': '2'; '2': '3'; '3': '4'; '4': '5'; '5': '6'; '6': '7'; '7': '8'; '8': '9'; '9': 'A'; A: 'B'; B: 'C'; C: 'D'; D: 'E'; E: 'F'; F: '0' }
+export type IncrementBase10 = { m: '9'; t: '01'; '0': '1'; '1': '2'; '2': '3'; '3': '4'; '4': '5'; '5': '6'; '6': '7'; '7': '8'; '8': '9'; '9': '0' }
+export type IncrementReverse<T extends string> = T extends `${infer L}${infer R}` ? `${IncrementReverse<R>}${L}` : T
+export type IncrementTick<T extends string, B extends IncrementBase> = T extends keyof B ? B[T] : never
+export type IncrementNext<T extends string, B extends IncrementBase> = T extends Assert<B, IncrementBase>['m']
+  ? Assert<B, IncrementBase>['t']
+  : T extends `${infer L}${infer R}`
+  ? L extends Assert<B, IncrementBase>['m']
+    ? `${Assert<IncrementTick<L, B>, string>}${IncrementNext<R, B>}`
+    : `${Assert<IncrementTick<L, B>, string>}${R}`
+  : never
+export type Increment<T extends string, B extends IncrementBase = IncrementBase10> = IncrementReverse<IncrementNext<IncrementReverse<T>, B>>
+// --------------------------------------------------------------------------
 // Type Assertions
 // --------------------------------------------------------------------------
 export type AssertProperties<T> = T extends TProperties ? T : TProperties
@@ -278,14 +294,6 @@ export interface TBoolean extends TSchema {
   type: 'boolean'
 }
 // --------------------------------------------------------------------------
-// TConstructorParameters
-// --------------------------------------------------------------------------
-export type TConstructorParameters<T extends TConstructor<TSchema[], TSchema>> = TTuple<T['parameters']>
-// --------------------------------------------------------------------------
-// TInstanceType
-// --------------------------------------------------------------------------
-export type TInstanceType<T extends TConstructor<TSchema[], TSchema>> = T['returns']
-// --------------------------------------------------------------------------
 // TComposite
 // --------------------------------------------------------------------------
 // prettier-ignore
@@ -305,6 +313,10 @@ export type TComposite<T extends TObject[]> = TIntersect<T> extends TIntersect
   ? TObject<TCompositeReduce<T>>
   : TObject<{}>
 // --------------------------------------------------------------------------
+// TConstructorParameters
+// --------------------------------------------------------------------------
+export type TConstructorParameters<T extends TConstructor<TSchema[], TSchema>> = TTuple<T['parameters']>
+// --------------------------------------------------------------------------
 // TConstructor
 // --------------------------------------------------------------------------
 export type TConstructorParameterArray<T extends readonly TSchema[], P extends unknown[]> = [...{ [K in keyof T]: Static<AssertType<T[K]>, P> }]
@@ -315,6 +327,34 @@ export interface TConstructor<T extends TSchema[] = TSchema[], U extends TSchema
   parameters: T
   returns: U
 }
+// --------------------------------------------------------------------------
+// TConst
+// --------------------------------------------------------------------------
+// prettier-ignore
+export type TConstRest<T extends readonly unknown[]> = T extends readonly [infer L, ...infer R] 
+  ? [TConstType<L>, ...TConstRest<R>] 
+  : T
+export type TConstProperties<T extends Record<PropertyKey, unknown>> = {
+  -readonly [K in keyof T]: TReadonly<TConstType<T[K]>>
+}
+// prettier-ignore
+export type TConstType<T> = 
+  T extends readonly unknown[] ? TTuple<AssertRest<TConstRest<T>>> :
+  T extends Uint8Array ? TUint8Array :
+  T extends Date ? TDate :
+  T extends Record<PropertyKey, unknown> ? TObject<Evaluate<AssertProperties<TConstProperties<T>>>> :
+  T extends AsyncIterableIterator<unknown> ? TAsyncIterator : 
+  T extends IterableIterator<unknown> ? TIterator : 
+  T extends Function ? TFunction : 
+  T extends undefined ? TUndefined :
+  T extends null ? TNull :
+  T extends symbol ? TSymbol :
+  T extends number ? TLiteral<T> : 
+  T extends boolean ? TLiteral<T> :
+  T extends string ? TLiteral<T> : 
+  T extends bigint ? TBigInt : 
+  TNever
+export type TConst<T> = TConstType<T>
 // --------------------------------------------------------------------------
 // TDate
 // --------------------------------------------------------------------------
@@ -448,6 +488,10 @@ export type TIntrinsic<T extends TSchema, M extends TIntrinsicMode> =
   T extends TUnion<infer S> ? TUnion<TIntrinsicRest<S, M>> :
   T extends TLiteral<infer S> ? TLiteral<TIntrinsicLiteral<S, M>> :
   T
+// --------------------------------------------------------------------------
+// TInstanceType
+// --------------------------------------------------------------------------
+export type TInstanceType<T extends TConstructor<TSchema[], TSchema>> = T['returns']
 // --------------------------------------------------------------------------
 // TInteger
 // --------------------------------------------------------------------------
@@ -1056,6 +1100,10 @@ export namespace FormatRegistry {
 // --------------------------------------------------------------------------
 /** Provides functions to type guard raw JavaScript values */
 export namespace ValueGuard {
+  /** Returns true if this value is an async iterator */
+  export function IsAsyncIterator(value: unknown): value is AsyncIterableIterator<unknown> {
+    return IsObject(value) && Symbol.asyncIterator in value
+  }
   /** Returns true if this value is an array */
   export function IsArray(value: unknown): value is unknown[] {
     return Array.isArray(value)
@@ -1067,6 +1115,18 @@ export namespace ValueGuard {
   /** Returns true if this value is a boolean */
   export function IsBoolean(value: unknown): value is boolean {
     return typeof value === 'boolean'
+  }
+  /** Returns true if this value is a Date */
+  export function IsDate(value: unknown): value is boolean {
+    return IsObject(value) && value instanceof Date
+  }
+  /** Returns true if this value is an iterator */
+  export function IsFunction(value: unknown): value is Function {
+    return typeof value === 'function'
+  }
+  /** Returns true if this value is an iterator */
+  export function IsIterator(value: unknown): value is IterableIterator<unknown> {
+    return IsObject(value) && Symbol.iterator in value
   }
   /** Returns true if this value is null */
   export function IsNull(value: unknown): value is null {
@@ -1083,6 +1143,14 @@ export namespace ValueGuard {
   /** Returns true if this value is string */
   export function IsString(value: unknown): value is string {
     return typeof value === 'string'
+  }
+  /** Returns true if this value is string */
+  export function IsSymbol(value: unknown): value is symbol {
+    return typeof value === 'symbol'
+  }
+  /** Returns true if this value is a Uint8Array */
+  export function IsUint8Array(value: unknown): value is Uint8Array {
+    return IsObject(value) && value instanceof Uint8Array
   }
   /** Returns true if this value is undefined */
   export function IsUndefined(value: unknown): value is undefined {
@@ -3295,6 +3363,41 @@ export class JavaScriptTypeBuilder extends JsonTypeBuilder {
   public Constructor<T extends TSchema[], U extends TSchema>(parameters: [...T], returns: U, options?: SchemaOptions): TConstructor<T, U> {
     const [clonedParameters, clonedReturns] = [TypeClone.Rest(parameters), TypeClone.Type(returns)]
     return this.Create({ ...options, [Kind]: 'Constructor', type: 'constructor', parameters: clonedParameters, returns: clonedReturns })
+  }
+  /** `[JavaScript]` Creates a Const type from a JavaScript value */
+  public Const<T>(value: T, options: SchemaOptions = {}): TConst<T> {
+    // prettier-ignore
+    const ConstRest = (rest: unknown[]): TSchema[] => {
+      return (rest.length === 0 ? [] : (() => {
+        const [L, ...R] = rest
+        return [ConstType(L), ...ConstRest(R)]
+      })()) 
+    }
+    // prettier-ignore
+    const ConstProperties = (value: Record<PropertyKey, unknown>): TProperties => {
+      return Object.getOwnPropertyNames(value).reduce((acc, key) => {
+        return { ...acc, [key]: this.Readonly(ConstType(value[key])) }
+      }, {})
+    }
+    // prettier-ignore
+    const ConstType = (value: unknown): TSchema => (
+      ValueGuard.IsArray(value) ? this.Tuple(ConstRest(value)) :
+      ValueGuard.IsUint8Array(value) ? this.Uint8Array() :
+      ValueGuard.IsDate(value) ?  this.Date() :
+      ValueGuard.IsObject(value) ? this.Object(ConstProperties(value)) :
+      ValueGuard.IsAsyncIterator(value) ? this.AsyncIterator(Type.Unknown()) :
+      ValueGuard.IsIterator(value) ? this.Iterator(Type.Unknown()) :
+      ValueGuard.IsFunction(value) ? this.Function([], Type.Unknown()) :
+      ValueGuard.IsUndefined(value) ? this.Undefined() :
+      ValueGuard.IsNull(value) ? this.Null() :
+      ValueGuard.IsSymbol(value) ? this.Symbol() :
+      ValueGuard.IsBigInt(value) ? this.BigInt() :
+      ValueGuard.IsNumber(value) ? this.Literal(value) :
+      ValueGuard.IsBoolean(value) ? this.Literal(value) :
+      ValueGuard.IsString(value) ? this.Literal(value) :
+      this.Never()
+    )
+    return TypeClone.Type(ConstType(value), options) as TConst<T>
   }
   /** `[JavaScript]` Creates a Date type */
   public Date(options: DateOptions = {}): TDate {

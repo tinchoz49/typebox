@@ -77,6 +77,24 @@ type P = Static<typeof P>                           // type P = {
                                                     // }
 ```
 
+## StaticString
+
+This is a variant of `Static`` that infers a TypeBox type as a TypeScript string type. This type may be useful for previewing inferred types as string, but currently has issues with deep instantiation of large types. This type may be included if a technique can be devised to mitigate deep recursive instantiation issues.
+
+```typescript
+import { type StaticString } from './prototypes'
+
+const T = Type.Object({
+  x: Type.Number(),
+  y: Type.Number(),
+  z: Type.Number()
+})
+
+type T = StaticString<typeof T>
+
+// type T = '{ x: number; y: number; z: number }'
+```
+
 ## UnionEnum
 
 Creates an `enum` union string schema representation. This type is often requested by OpenAPI users, particularily for documentation presentation. As TypeBox standardizes on `anyOf` for all unions, this type is generally at odds with TypeBox's internal representation. Some considerations for internally remapping this type into a `anyOf` through composition have been considered (and would be feasible), but as TypeScript doesn't have multiple representations for unions, neither should TypeBox, making this type an unlikely candidate.

@@ -122,18 +122,21 @@ function UndefinedType(value: undefined) {
   return FNV1A64(ByteMarker.Undefined)
 }
 function Visit(value: any) {
-  if (IsArray(value)) return ArrayType(value)
-  if (IsBoolean(value)) return BooleanType(value)
-  if (IsBigInt(value)) return BigIntType(value)
-  if (IsDate(value)) return DateType(value)
-  if (IsNull(value)) return NullType(value)
-  if (IsNumber(value)) return NumberType(value)
-  if (IsPlainObject(value)) return ObjectType(value)
-  if (IsString(value)) return StringType(value)
-  if (IsSymbol(value)) return SymbolType(value)
-  if (IsUint8Array(value)) return Uint8ArrayType(value)
-  if (IsUndefined(value)) return UndefinedType(value)
-  throw new ValueHashError(value)
+  // prettier-ignore
+  return (
+    IsArray(value) ? ArrayType(value) :
+    IsBoolean(value) ? BooleanType(value) :
+    IsBigInt(value) ? BigIntType(value) :
+    IsDate(value) ? DateType(value) :
+    IsNull(value) ? NullType(value) :
+    IsNumber(value) ? NumberType(value) :
+    IsPlainObject(value) ? ObjectType(value) :
+    IsString(value) ? StringType(value) :
+    IsSymbol(value) ? SymbolType(value) :
+    IsUint8Array(value) ? Uint8ArrayType(value) :
+    IsUndefined(value) ? UndefinedType(value) :
+    (() => { throw new ValueHashError(value) })()
+  )
 }
 function FNV1A64(byte: number) {
   Accumulator = Accumulator ^ Bytes[byte]

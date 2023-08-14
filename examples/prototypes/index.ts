@@ -29,5 +29,6 @@ THE SOFTWARE.
 export * from './const'
 export * from './evaluate'
 export * from './partial-deep'
+export * from './static-string'
 export * from './union-enum'
 export * from './union-oneof'

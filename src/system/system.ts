@@ -99,8 +99,7 @@ export namespace TypeSystemPolicy {
   }
   /** Asserts this value using the AllowArrayObjects policy */
   export function IsObjectLike(value: unknown): value is Record<keyof any, unknown> {
-    const isObject = IsObject(value)
-    return AllowArrayObject ? isObject : isObject && !IsArray(value)
+    return AllowArrayObject ? IsObject(value) : IsObject(value) && !IsArray(value)
   }
   /** Asserts this value as a record using the AllowArrayObjects policy */
   export function IsRecordLike(value: unknown): value is Record<keyof any, unknown> {
@@ -108,8 +107,7 @@ export namespace TypeSystemPolicy {
   }
   /** Asserts this value using the AllowNaN policy */
   export function IsNumberLike(value: unknown): value is number {
-    const isNumber = IsNumber(value)
-    return AllowNaN ? isNumber : isNumber && Number.isFinite(value)
+    return AllowNaN ? typeof value === 'number' : Number.isFinite(value)
   }
   /** Asserts this value using the AllowVoidNull policy */
   export function IsVoidLike(value: unknown): value is void {

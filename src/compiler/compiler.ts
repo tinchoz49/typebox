@@ -129,6 +129,14 @@ namespace Identifier {
   }
 }
 // -------------------------------------------------------------------
+// LiteralString
+// -------------------------------------------------------------------
+namespace LiteralString {
+  export function Escape(content: string) {
+    return content.replace(/'/g, "\\'")
+  }
+}
+// -------------------------------------------------------------------
 // Errors
 // -------------------------------------------------------------------
 export class TypeCompilerUnknownTypeError extends Types.TypeBoxError {
@@ -146,18 +154,25 @@ export class TypeCompilerTypeGuardError extends Types.TypeBoxError {
 // -------------------------------------------------------------------
 export namespace Policy {
   export function IsExactOptionalProperty(value: string, key: string, expression: string) {
-    return TypeSystemPolicy.ExactOptionalPropertyTypes ? `('${key}' in ${value} ? ${expression} : true)` : `(${MemberExpression.Encode(value, key)} !== undefined ? ${expression} : true)`
+    // prettier-ignore
+    return TypeSystemPolicy.ExactOptionalPropertyTypes
+      ? `('${key}' in ${value} ? ${expression} : true)` 
+      : `(${MemberExpression.Encode(value, key)} !== undefined ? ${expression} : true)`
   }
   export function IsObjectLike(value: string): string {
-    return !TypeSystemPolicy.AllowArrayObject ? `(typeof ${value} === 'object' && ${value} !== null && !Array.isArray(${value}))` : `(typeof ${value} === 'object' && ${value} !== null)`
+    // prettier-ignore
+    return TypeSystemPolicy.AllowArrayObject 
+      ? `(typeof ${value} === 'object' && ${value} !== null)`
+      : `(typeof ${value} === 'object' && ${value} !== null && !Array.isArray(${value}))`
   }
   export function IsRecordLike(value: string): string {
-    return !TypeSystemPolicy.AllowArrayObject
-      ? `(typeof ${value} === 'object' && ${value} !== null && !Array.isArray(${value}) && !(${value} instanceof Date) && !(${value} instanceof Uint8Array))`
-      : `(typeof ${value} === 'object' && ${value} !== null && !(${value} instanceof Date) && !(${value} instanceof Uint8Array))`
+    // prettier-ignore
+    return TypeSystemPolicy.AllowArrayObject
+      ? `(typeof ${value} === 'object' && ${value} !== null && !(${value} instanceof Date) && !(${value} instanceof Uint8Array))`
+      : `(typeof ${value} === 'object' && ${value} !== null && !Array.isArray(${value}) && !(${value} instanceof Date) && !(${value} instanceof Uint8Array))`
   }
   export function IsNumberLike(value: string): string {
-    return !TypeSystemPolicy.AllowNaN ? `(typeof ${value} === 'number' && Number.isFinite(${value}))` : `typeof ${value} === 'number'`
+    return TypeSystemPolicy.AllowNaN ? `typeof ${value} === 'number'` : `Number.isFinite(${value})`
   }
   export function IsVoidLike(value: string): string {
     return TypeSystemPolicy.AllowNullVoid ? `(${value} === undefined || ${value} === null)` : `${value} === undefined`
@@ -263,7 +278,7 @@ export namespace TypeCompiler {
     if (typeof schema.const === 'number' || typeof schema.const === 'boolean') {
       yield `(${value} === ${schema.const})`
     } else {
-      yield `(${value} === '${schema.const}')`
+      yield `(${value} === '${LiteralString.Escape(schema.const)}')`
     }
   }
   function* TNever(schema: Types.TNever, references: Types.TSchema[], value: string): IterableIterator<string> {

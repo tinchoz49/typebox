@@ -26,9 +26,18 @@ THE SOFTWARE.
 
 ---------------------------------------------------------------------------*/
 
-import { IsPlainObject, IsDate, IsArray, IsTypedArray, IsValueType } from './guard'
 import type { ObjectType, ArrayType, TypedArrayType, ValueType } from './guard'
+import { IsPlainObject, IsDate, IsArray, IsTypedArray, IsValueType } from './guard'
+import { TypeBoxError } from '../typebox'
 
+// --------------------------------------------------------------------------
+// ValueEqualError
+// --------------------------------------------------------------------------
+export class ValueEqualError extends TypeBoxError {
+  constructor(message: string, public readonly left: unknown, public readonly right: unknown) {
+    super(message)
+  }
+}
 // --------------------------------------------------------------------------
 // Equality Checks
 // --------------------------------------------------------------------------
@@ -58,10 +67,13 @@ function ValueType(left: ValueType, right: unknown): any {
 // --------------------------------------------------------------------------
 /** Returns true if the left value deep-equals the right */
 export function Equal<T>(left: T, right: unknown): right is T {
-  if (IsPlainObject(left)) return ObjectType(left, right)
-  if (IsDate(left)) return DateType(left, right)
-  if (IsTypedArray(left)) return TypedArrayType(left, right)
-  if (IsArray(left)) return ArrayType(left, right)
-  if (IsValueType(left)) return ValueType(left, right)
-  throw new Error('ValueEquals: Unable to compare value')
+  // prettier-ignore
+  return (
+    IsPlainObject(left) ? ObjectType(left, right) :
+    IsDate(left) ? DateType(left, right) :
+    IsTypedArray(left) ? TypedArrayType(left, right) :
+    IsArray(left) ? ArrayType(left, right) :
+    IsValueType(left)?  ValueType(left, right) :
+    (() => { throw new ValueEqualError('Unable to check equality', left, right)})()
+  )
 }

@@ -60,7 +60,9 @@ type T = Static<typeof T>                            // type T = {
 
 TypeBox is a runtime type builder that creates Json Schema objects that infer as TypeScript types. The schemas produced by this library are designed to match the static type checking rules of the TypeScript compiler. TypeBox offers a unified type that can be statically checked by TypeScript or runtime checked using standard Json Schema validation.
 
-TypeBox is designed to be a runtime type system based on industry standard specifications. It offers serializable and publishable types as standard, a fully extensible type system capable of supporting multiple schema specifications, a high performance runtime validation compiler, various tools for working with dynamic data and offers detailed structured error reporting. It can either be used as a simple tool to build up complex schemas or integrated into applications to enable high performance runtime validation for data received over the wire.
+TypeBox is built upon industry standard specifications. It offers reflectable, serializable and publishable types as standard, a fully extensible type system capable of supporting multiple schema specifications, includes a high performance validation compiler, offers various tools for working with dynamic data and provides detailed structured error reporting. 
+
+TypeBox can be used as a simple tool to build up complex schemas or integrated into applications to enable high performance runtime validation for data received over the wire.
 
 License MIT
 
@@ -82,6 +84,7 @@ License MIT
   - [Rest](#types-rest)
   - [Transform](#types-transform)
   - [Intrinsic](#types-intrinsic)
+  - [Const](#types-const)
   - [Guard](#types-guard)
   - [Unsafe](#types-unsafe)
   - [Strict](#types-strict)
@@ -580,6 +583,16 @@ TypeBox provides an extended type set that can be used to create schematics for 
 │                                │                             │ }                              │
 │                                │                             │                                │
 ├────────────────────────────────┼─────────────────────────────┼────────────────────────────────┤
+│ const T = Type.Const({         │ const T = {                 │ const T = {                    │
+│   x: 1,                        │   x: 1                      │   type: 'object',              │
+│   y: 2                         │   y: 2                      │   required: ['x', 'y'],        │
+│ } as const)                    │ } as const                  │   properties: {                │
+│                                │                             │     x: { const: 1 },           │
+│                                │                             │     x: { const: 2 }            │
+│                                │                             │   }                            │
+│                                │                             │ }                              │
+│                                │                             │                                │
+├────────────────────────────────┼─────────────────────────────┼────────────────────────────────┤
 │ const T = Type.RegExp(/abc/)   │ type T = string             │ const T = {                    │
 │                                │                             │   type: 'string'               │
 │                                │                             │   pattern: 'abc'               │
@@ -1004,6 +1017,34 @@ const C = Type.Capitalize(                           // const C: TTemplateLitera
                                                      // ]>
 ```
 
+<a name='types-const'></a>
+
+### Const Types
+
+TypeBox supports constant types using Const. This type will convert a JavaScript value into a type matching that value. This type is modelled on TypeScript const assertions. The following creates a Const type.
+
+```typescript
+// TypeScript
+
+const T = { x: 1, y: 2 } as const                  // type T = {
+                                                   //   readonly x: 1, 
+                                                   //   readonly y: 2 
+                                                   // }
+
+// TypeBox
+
+const T = Type.Const({ x: 1, y: 2 } as const)      // const T = {
+                                                   //   type: 'object',
+                                                   //   required: ['x', 'y'],
+                                                   //   properties: {
+                                                   //     x: { const: 1 },
+                                                   //     y: { const: 1 }
+                                                   //   }
+                                                   // }
+```
+TypeBox requires that a const assertion is used to construct this type. This requirement is to enable backwards compatibility with TypeScript 4. TypeBox will use TypeScript [const generics](https://devblogs.microsoft.com/typescript/announcing-typescript-5-0/#const-type-parameters) once TypeScript 5 sees general widespread adoption.
+
+
 <a name='types-unsafe'></a>
 
 ### Unsafe Types
@@ -1167,9 +1208,9 @@ const Z = Value.Cast(T, { x: 1, y: 2, z: 3 })        // const Z = { x: 1, y: 2 }
 Use the Decode function to decode a value from a type, or throw if the value is invalid. The return value will infer as the decoded type. This function will run Transform codecs if available.
 
 ```typescript
-const A = Type.Decode(Type.String(), 'hello')        // const A = 'hello'
+const A = Value.Decode(Type.String(), 'hello')        // const A = 'hello'
 
-const B = Type.Decode(Type.String(), 42)             // throw
+const B = Value.Decode(Type.String(), 42)             // throw
 ```
 <a name='values-decode'></a>
 
@@ -1178,9 +1219,9 @@ const B = Type.Decode(Type.String(), 42)             // throw
 Use the Encode function to encode a value to a type, or throw if the value is invalid. The return value will infer as the encoded type. This function will run Transform codecs if available.
 
 ```typescript
-const A = Type.Encode(Type.String(), 'hello')        // const A = 'hello'
+const A = Value.Encode(Type.String(), 'hello')        // const A = 'hello'
 
-const B = Type.Encode(Type.String(), 42)             // throw
+const B = Value.Encode(Type.String(), 42)             // throw
 ```
 
 <a name='values-equal'></a>
@@ -1629,35 +1670,35 @@ This benchmark measures compilation performance for varying types. You can revie
 ┌────────────────────────────┬────────────┬──────────────┬──────────────┬──────────────┐
 │          (index)           │ Iterations │     Ajv      │ TypeCompiler │ Performance  │
 ├────────────────────────────┼────────────┼──────────────┼──────────────┼──────────────┤
-│ Literal_String             │    1000    │ '    216 ms' │ '      9 ms' │ '   24.00 x' │
-│ Literal_Number             │    1000    │ '    169 ms' │ '      7 ms' │ '   24.14 x' │
-│ Literal_Boolean            │    1000    │ '    150 ms' │ '      5 ms' │ '   30.00 x' │
-│ Primitive_Number           │    1000    │ '    161 ms' │ '      7 ms' │ '   23.00 x' │
-│ Primitive_String           │    1000    │ '    148 ms' │ '      6 ms' │ '   24.67 x' │
-│ Primitive_String_Pattern   │    1000    │ '    185 ms' │ '      9 ms' │ '   20.56 x' │
-│ Primitive_Boolean          │    1000    │ '    132 ms' │ '      4 ms' │ '   33.00 x' │
-│ Primitive_Null             │    1000    │ '    141 ms' │ '      3 ms' │ '   47.00 x' │
-│ Object_Unconstrained       │    1000    │ '   1109 ms' │ '     30 ms' │ '   36.97 x' │
-│ Object_Constrained         │    1000    │ '   1200 ms' │ '     24 ms' │ '   50.00 x' │
-│ Object_Vector3             │    1000    │ '    379 ms' │ '      9 ms' │ '   42.11 x' │
-│ Object_Box3D               │    1000    │ '   1709 ms' │ '     30 ms' │ '   56.97 x' │
-│ Tuple_Primitive            │    1000    │ '    456 ms' │ '     14 ms' │ '   32.57 x' │
-│ Tuple_Object               │    1000    │ '   1229 ms' │ '     17 ms' │ '   72.29 x' │
-│ Composite_Intersect        │    1000    │ '    570 ms' │ '     17 ms' │ '   33.53 x' │
-│ Composite_Union            │    1000    │ '    513 ms' │ '     19 ms' │ '   27.00 x' │
-│ Math_Vector4               │    1000    │ '    782 ms' │ '     13 ms' │ '   60.15 x' │
-│ Math_Matrix4               │    1000    │ '    393 ms' │ '     12 ms' │ '   32.75 x' │
-│ Array_Primitive_Number     │    1000    │ '    361 ms' │ '     12 ms' │ '   30.08 x' │
-│ Array_Primitive_String     │    1000    │ '    296 ms' │ '      5 ms' │ '   59.20 x' │
-│ Array_Primitive_Boolean    │    1000    │ '    315 ms' │ '      4 ms' │ '   78.75 x' │
-│ Array_Object_Unconstrained │    1000    │ '   1721 ms' │ '     22 ms' │ '   78.23 x' │
-│ Array_Object_Constrained   │    1000    │ '   1450 ms' │ '     21 ms' │ '   69.05 x' │
-│ Array_Tuple_Primitive      │    1000    │ '    813 ms' │ '     13 ms' │ '   62.54 x' │
-│ Array_Tuple_Object         │    1000    │ '   1537 ms' │ '     17 ms' │ '   90.41 x' │
-│ Array_Composite_Intersect  │    1000    │ '    753 ms' │ '     17 ms' │ '   44.29 x' │
-│ Array_Composite_Union      │    1000    │ '    808 ms' │ '     16 ms' │ '   50.50 x' │
-│ Array_Math_Vector4         │    1000    │ '   1118 ms' │ '     16 ms' │ '   69.88 x' │
-│ Array_Math_Matrix4         │    1000    │ '    690 ms' │ '      9 ms' │ '   76.67 x' │
+│ Literal_String             │    1000    │ '    276 ms' │ '     15 ms' │ '   18.40 x' │
+│ Literal_Number             │    1000    │ '    230 ms' │ '     12 ms' │ '   19.17 x' │
+│ Literal_Boolean            │    1000    │ '    204 ms' │ '      6 ms' │ '   34.00 x' │
+│ Primitive_Number           │    1000    │ '    189 ms' │ '     11 ms' │ '   17.18 x' │
+│ Primitive_String           │    1000    │ '    202 ms' │ '      9 ms' │ '   22.44 x' │
+│ Primitive_String_Pattern   │    1000    │ '    244 ms' │ '     14 ms' │ '   17.43 x' │
+│ Primitive_Boolean          │    1000    │ '    167 ms' │ '      9 ms' │ '   18.56 x' │
+│ Primitive_Null             │    1000    │ '    170 ms' │ '      5 ms' │ '   34.00 x' │
+│ Object_Unconstrained       │    1000    │ '   1323 ms' │ '     41 ms' │ '   32.27 x' │
+│ Object_Constrained         │    1000    │ '   1490 ms' │ '     33 ms' │ '   45.15 x' │
+│ Object_Vector3             │    1000    │ '    461 ms' │ '     16 ms' │ '   28.81 x' │
+│ Object_Box3D               │    1000    │ '   2053 ms' │ '     31 ms' │ '   66.23 x' │
+│ Tuple_Primitive            │    1000    │ '    546 ms' │ '     23 ms' │ '   23.74 x' │
+│ Tuple_Object               │    1000    │ '   1474 ms' │ '     24 ms' │ '   61.42 x' │
+│ Composite_Intersect        │    1000    │ '    678 ms' │ '     24 ms' │ '   28.25 x' │
+│ Composite_Union            │    1000    │ '    608 ms' │ '     23 ms' │ '   26.43 x' │
+│ Math_Vector4               │    1000    │ '    933 ms' │ '     12 ms' │ '   77.75 x' │
+│ Math_Matrix4               │    1000    │ '    452 ms' │ '     15 ms' │ '   30.13 x' │
+│ Array_Primitive_Number     │    1000    │ '    424 ms' │ '     13 ms' │ '   32.62 x' │
+│ Array_Primitive_String     │    1000    │ '    363 ms' │ '      8 ms' │ '   45.38 x' │
+│ Array_Primitive_Boolean    │    1000    │ '    345 ms' │ '      9 ms' │ '   38.33 x' │
+│ Array_Object_Unconstrained │    1000    │ '   2007 ms' │ '     26 ms' │ '   77.19 x' │
+│ Array_Object_Constrained   │    1000    │ '   1708 ms' │ '     24 ms' │ '   71.17 x' │
+│ Array_Tuple_Primitive      │    1000    │ '    949 ms' │ '     19 ms' │ '   49.95 x' │
+│ Array_Tuple_Object         │    1000    │ '   1856 ms' │ '     24 ms' │ '   77.33 x' │
+│ Array_Composite_Intersect  │    1000    │ '    974 ms' │ '     26 ms' │ '   37.46 x' │
+│ Array_Composite_Union      │    1000    │ '   1074 ms' │ '     21 ms' │ '   51.14 x' │
+│ Array_Math_Vector4         │    1000    │ '   1482 ms' │ '     20 ms' │ '   74.10 x' │
+│ Array_Math_Matrix4         │    1000    │ '    837 ms' │ '     13 ms' │ '   64.38 x' │
 └────────────────────────────┴────────────┴──────────────┴──────────────┴──────────────┘
 ```
 
@@ -1671,37 +1712,37 @@ This benchmark measures validation performance for varying types. You can review
 ┌────────────────────────────┬────────────┬──────────────┬──────────────┬──────────────┬──────────────┐
 │          (index)           │ Iterations │  ValueCheck  │     Ajv      │ TypeCompiler │ Performance  │
 ├────────────────────────────┼────────────┼──────────────┼──────────────┼──────────────┼──────────────┤
-│ Literal_String             │  1000000   │ '     24 ms' │ '      5 ms' │ '      4 ms' │ '    1.25 x' │
-│ Literal_Number             │  1000000   │ '     15 ms' │ '     20 ms' │ '     10 ms' │ '    2.00 x' │
-│ Literal_Boolean            │  1000000   │ '     14 ms' │ '     19 ms' │ '      9 ms' │ '    2.11 x' │
-│ Primitive_Number           │  1000000   │ '     25 ms' │ '     18 ms' │ '     10 ms' │ '    1.80 x' │
-│ Primitive_String           │  1000000   │ '     21 ms' │ '     24 ms' │ '      9 ms' │ '    2.67 x' │
-│ Primitive_String_Pattern   │  1000000   │ '    156 ms' │ '     43 ms' │ '     38 ms' │ '    1.13 x' │
-│ Primitive_Boolean          │  1000000   │ '     18 ms' │ '     17 ms' │ '      9 ms' │ '    1.89 x' │
-│ Primitive_Null             │  1000000   │ '     20 ms' │ '     17 ms' │ '      9 ms' │ '    1.89 x' │
-│ Object_Unconstrained       │  1000000   │ '   1055 ms' │ '     32 ms' │ '     24 ms' │ '    1.33 x' │
-│ Object_Constrained         │  1000000   │ '   1232 ms' │ '     49 ms' │ '     43 ms' │ '    1.14 x' │
-│ Object_Vector3             │  1000000   │ '    432 ms' │ '     23 ms' │ '     13 ms' │ '    1.77 x' │
-│ Object_Box3D               │  1000000   │ '   1993 ms' │ '     54 ms' │ '     46 ms' │ '    1.17 x' │
-│ Object_Recursive           │  1000000   │ '   5115 ms' │ '    342 ms' │ '    159 ms' │ '    2.15 x' │
-│ Tuple_Primitive            │  1000000   │ '    156 ms' │ '     21 ms' │ '     13 ms' │ '    1.62 x' │
-│ Tuple_Object               │  1000000   │ '    740 ms' │ '     29 ms' │ '     18 ms' │ '    1.61 x' │
-│ Composite_Intersect        │  1000000   │ '    797 ms' │ '     26 ms' │ '     14 ms' │ '    1.86 x' │
-│ Composite_Union            │  1000000   │ '    530 ms' │ '     23 ms' │ '     13 ms' │ '    1.77 x' │
-│ Math_Vector4               │  1000000   │ '    240 ms' │ '     22 ms' │ '     11 ms' │ '    2.00 x' │
-│ Math_Matrix4               │  1000000   │ '   1036 ms' │ '     39 ms' │ '     27 ms' │ '    1.44 x' │
-│ Array_Primitive_Number     │  1000000   │ '    248 ms' │ '     20 ms' │ '     12 ms' │ '    1.67 x' │
-│ Array_Primitive_String     │  1000000   │ '    227 ms' │ '     22 ms' │ '     13 ms' │ '    1.69 x' │
-│ Array_Primitive_Boolean    │  1000000   │ '    138 ms' │ '     21 ms' │ '     13 ms' │ '    1.62 x' │
-│ Array_Object_Unconstrained │  1000000   │ '   5540 ms' │ '     66 ms' │ '     59 ms' │ '    1.12 x' │
-│ Array_Object_Constrained   │  1000000   │ '   5750 ms' │ '    123 ms' │ '    108 ms' │ '    1.14 x' │
-│ Array_Object_Recursive     │  1000000   │ '  21842 ms' │ '   1771 ms' │ '    599 ms' │ '    2.96 x' │
-│ Array_Tuple_Primitive      │  1000000   │ '    715 ms' │ '     36 ms' │ '     29 ms' │ '    1.24 x' │
-│ Array_Tuple_Object         │  1000000   │ '   3131 ms' │ '     63 ms' │ '     50 ms' │ '    1.26 x' │
-│ Array_Composite_Intersect  │  1000000   │ '   3064 ms' │ '     44 ms' │ '     35 ms' │ '    1.26 x' │
-│ Array_Composite_Union      │  1000000   │ '   2172 ms' │ '     65 ms' │ '     31 ms' │ '    2.10 x' │
-│ Array_Math_Vector4         │  1000000   │ '   1032 ms' │ '     37 ms' │ '     24 ms' │ '    1.54 x' │
-│ Array_Math_Matrix4         │  1000000   │ '   4859 ms' │ '    114 ms' │ '     86 ms' │ '    1.33 x' │
+│ Literal_String             │  1000000   │ '     24 ms' │ '      8 ms' │ '      6 ms' │ '    1.33 x' │
+│ Literal_Number             │  1000000   │ '     24 ms' │ '     27 ms' │ '     10 ms' │ '    2.70 x' │
+│ Literal_Boolean            │  1000000   │ '     16 ms' │ '     24 ms' │ '     11 ms' │ '    2.18 x' │
+│ Primitive_Number           │  1000000   │ '     30 ms' │ '     26 ms' │ '     14 ms' │ '    1.86 x' │
+│ Primitive_String           │  1000000   │ '     23 ms' │ '     29 ms' │ '     11 ms' │ '    2.64 x' │
+│ Primitive_String_Pattern   │  1000000   │ '    171 ms' │ '     49 ms' │ '     39 ms' │ '    1.26 x' │
+│ Primitive_Boolean          │  1000000   │ '     22 ms' │ '     25 ms' │ '     12 ms' │ '    2.08 x' │
+│ Primitive_Null             │  1000000   │ '     25 ms' │ '     30 ms' │ '     11 ms' │ '    2.73 x' │
+│ Object_Unconstrained       │  1000000   │ '   1210 ms' │ '     43 ms' │ '     28 ms' │ '    1.54 x' │
+│ Object_Constrained         │  1000000   │ '   1431 ms' │ '     59 ms' │ '     74 ms' │ '    0.80 x' │
+│ Object_Vector3             │  1000000   │ '    474 ms' │ '     32 ms' │ '     13 ms' │ '    2.46 x' │
+│ Object_Box3D               │  1000000   │ '   2583 ms' │ '     61 ms' │ '     46 ms' │ '    1.33 x' │
+│ Object_Recursive           │  1000000   │ '   6190 ms' │ '    481 ms' │ '    270 ms' │ '    1.78 x' │
+│ Tuple_Primitive            │  1000000   │ '    183 ms' │ '     32 ms' │ '     14 ms' │ '    2.29 x' │
+│ Tuple_Object               │  1000000   │ '    886 ms' │ '     36 ms' │ '     23 ms' │ '    1.57 x' │
+│ Composite_Intersect        │  1000000   │ '    887 ms' │ '     52 ms' │ '     21 ms' │ '    2.48 x' │
+│ Composite_Union            │  1000000   │ '    600 ms' │ '     31 ms' │ '     15 ms' │ '    2.07 x' │
+│ Math_Vector4               │  1000000   │ '    284 ms' │ '     29 ms' │ '     19 ms' │ '    1.53 x' │
+│ Math_Matrix4               │  1000000   │ '   1265 ms' │ '     43 ms' │ '     33 ms' │ '    1.30 x' │
+│ Array_Primitive_Number     │  1000000   │ '    353 ms' │ '     28 ms' │ '     13 ms' │ '    2.15 x' │
+│ Array_Primitive_String     │  1000000   │ '    272 ms' │ '     33 ms' │ '     16 ms' │ '    2.06 x' │
+│ Array_Primitive_Boolean    │  1000000   │ '    144 ms' │ '     27 ms' │ '     17 ms' │ '    1.59 x' │
+│ Array_Object_Unconstrained │  1000000   │ '   6197 ms' │ '     76 ms' │ '     55 ms' │ '    1.38 x' │
+│ Array_Object_Constrained   │  1000000   │ '   6592 ms' │ '    144 ms' │ '    165 ms' │ '    0.87 x' │
+│ Array_Object_Recursive     │  1000000   │ '  25046 ms' │ '   2341 ms' │ '    963 ms' │ '    2.43 x' │
+│ Array_Tuple_Primitive      │  1000000   │ '    819 ms' │ '     48 ms' │ '     50 ms' │ '    0.96 x' │
+│ Array_Tuple_Object         │  1000000   │ '   3853 ms' │ '     71 ms' │ '     63 ms' │ '    1.13 x' │
+│ Array_Composite_Intersect  │  1000000   │ '   3556 ms' │ '     53 ms' │ '     46 ms' │ '    1.15 x' │
+│ Array_Composite_Union      │  1000000   │ '   2447 ms' │ '     88 ms' │ '     35 ms' │ '    2.51 x' │
+│ Array_Math_Vector4         │  1000000   │ '   1271 ms' │ '     42 ms' │ '     33 ms' │ '    1.27 x' │
+│ Array_Math_Matrix4         │  1000000   │ '   5706 ms' │ '    140 ms' │ '    109 ms' │ '    1.28 x' │
 └────────────────────────────┴────────────┴──────────────┴──────────────┴──────────────┴──────────────┘
 ```
 
