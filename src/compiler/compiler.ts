@@ -32,7 +32,7 @@ import { Errors, ValueErrorIterator } from '../errors/errors'
 import { TypeSystemPolicy } from '../system/index'
 import { Deref } from '../value/deref'
 import { Hash } from '../value/hash'
-import { Annotation } from './annotation'
+import { TypeAnnotation } from './annotation'
 import * as Types from '../typebox'
 
 // -------------------------------------------------------------------
@@ -525,7 +525,7 @@ export namespace TypeCompiler {
     return `${name}${annotation}`
   }
   function CreateReturns(schema: Types.TSchema, references: Types.TSchema[]) {
-    return state.language === 'typescript' ? `: value is ${Annotation(schema, references)}` : ''
+    return state.language === 'typescript' ? `: value is ${TypeAnnotation.Code(schema, references)}` : ''
   }
   // -------------------------------------------------------------------
   // Compile

@@ -77,12 +77,12 @@ type P = Static<typeof P>                           // type P = {
                                                     // }
 ```
 
-## StaticString
+## TAnnotation
 
 This is a variant of `Static`` that infers a TypeBox type as a TypeScript string type. This type may be useful for previewing inferred types as string, but currently has issues with deep instantiation of large types. This type may be included if a technique can be devised to mitigate deep recursive instantiation issues.
 
 ```typescript
-import { type StaticString } from './prototypes'
+import { type TAnnotation } from './prototypes'
 
 const T = Type.Object({
   x: Type.Number(),
@@ -90,7 +90,7 @@ const T = Type.Object({
   z: Type.Number()
 })
 
-type T = StaticString<typeof T>
+type T = TAnnotation<typeof T>
 
 // type T = '{ x: number; y: number; z: number }'
 ```

@@ -26,98 +26,99 @@ THE SOFTWARE.
 
 ---------------------------------------------------------------------------*/
 
-import * as Types from '../typebox'
 import { Deref } from '../value/deref'
+import * as Types from '../typebox'
 
-// prettier-ignore
-function AnnotationIntersect(schema: Types.TSchema[], references: Types.TSchema[]): string {
-  const [L, ...R] = schema
-  return R.length === 0
-    ? `${Annotation(L, references)}`
-    : `${Annotation(L, references)} & ${AnnotationIntersect(R, references)}`
-}
-// prettier-ignore
-function AnnotationUnion(schema: Types.TSchema[], references: Types.TSchema[]): string {
-  const [L, ...R] = schema
-  return R.length === 0
-    ? `${Annotation(L, references)}`
-    : `${Annotation(L, references)} & ${AnnotationUnion(R, references)}`
-}
-// prettier-ignore
-function AnnotationTuple(schema: Types.TSchema[], references: Types.TSchema[]): string {
-  const [L, ...R] = schema
-  return R.length === 0
-    ? `${Annotation(L, references)}`
-    : `${Annotation(L, references)}, ${AnnotationUnion(R, references)}`
-}
-// prettier-ignore
-function AnnotationProperty(schema: Types.TProperties, K: string, references: Types.TSchema[]) {
-  const TK = schema[K]
-  return (
-    Types.TypeGuard.TOptional(TK) && Types.TypeGuard.TReadonly(TK) ? `readonly ${K}?: ${Annotation(TK, references)}` :
-    Types.TypeGuard.TReadonly(TK) ? `readonly ${K}: ${Annotation(TK, references)}` :
-    Types.TypeGuard.TOptional(TK) ? `${K}?: ${Annotation(TK, references)}` :
-    `${K}: ${Annotation(TK, references)}`
-  )
-}
-// prettier-ignore
-function AnnotationProperties(schema: Types.TProperties, K: string[], references: Types.TSchema[]): string {
-  const [L, ...R] = K
-  return R.length === 0
-    ? `${AnnotationProperty(schema, L, references)}`
-    : `${AnnotationProperty(schema, L, references)}; ${AnnotationProperties(schema, R, references)}`
-}
-// prettier-ignore
-function AnnotationParameters(schema: Types.TSchema[], I: number, references: Types.TSchema[]): string {
-  const [L, ...R] = schema
-  return R.length === 0
-    ? `param_${I}: ${Annotation(L, references)}`
-    : `param_${I}: ${Annotation(L, references)}, ${AnnotationParameters(R, I+1, references)}`
-}
-// prettier-ignore
-function AnnotationLiteral(schema: Types.TLiteral, references: Types.TSchema[]) {
-  return (
-    typeof schema.const === 'string' 
-      ? `'${schema.const.replace(/'/g, "\\'")}'` 
-      : schema.const.toString()
-  )
-}
-// prettier-ignore
-function AnnotationRecord(schema: Types.TRecord, references: Types.TSchema[]) {
-  return ''
-}
-/** Generates a TypeScript type annotation for the given schema */
-export function Annotation(schema: Types.TSchema, references: Types.TSchema[] = []): string {
+/** Generates TypeScript Type Annotation from TypeBox types */
+export namespace TypeAnnotation {
+  function Intersect(schema: Types.TSchema[], references: Types.TSchema[]): string {
+    const [L, ...R] = schema
+    // prettier-ignore
+    return R.length === 0
+      ? `${Visit(L, references)}`
+      : `${Visit(L, references)} & ${Intersect(R, references)}`
+  }
+  function Union(schema: Types.TSchema[], references: Types.TSchema[]): string {
+    const [L, ...R] = schema
+    // prettier-ignore
+    return R.length === 0
+      ? `${Visit(L, references)}`
+      : `${Visit(L, references)} | ${Union(R, references)}`
+  }
+  function Tuple(schema: Types.TSchema[], references: Types.TSchema[]): string {
+    const [L, ...R] = schema
+    // prettier-ignore
+    return R.length === 0
+      ? `${Visit(L, references)}`
+      : `${Visit(L, references)}, ${Union(R, references)}`
+  }
+  function Property(schema: Types.TProperties, K: string, references: Types.TSchema[]): string {
+    const TK = schema[K]
+    // prettier-ignore
+    return (
+      Types.TypeGuard.TOptional(TK) && Types.TypeGuard.TReadonly(TK) ? `readonly ${K}?: ${Visit(TK, references)}` :
+      Types.TypeGuard.TReadonly(TK) ? `readonly ${K}: ${Visit(TK, references)}` :
+      Types.TypeGuard.TOptional(TK) ? `${K}?: ${Visit(TK, references)}` :
+      `${K}: ${Visit(TK, references)}`
+    )
+  }
+  function Properties(schema: Types.TProperties, K: string[], references: Types.TSchema[]): string {
+    const [L, ...R] = K
+    // prettier-ignore
+    return R.length === 0
+      ? `${Property(schema, L, references)}`
+      : `${Property(schema, L, references)}; ${Properties(schema, R, references)}`
+  }
+  function Parameters(schema: Types.TSchema[], I: number, references: Types.TSchema[]): string {
+    const [L, ...R] = schema
+    // prettier-ignore
+    return R.length === 0
+      ? `param_${I}: ${Visit(L, references)}`
+      : `param_${I}: ${Visit(L, references)}, ${Parameters(R, I + 1, references)}`
+  }
+  function Literal(schema: Types.TLiteral, references: Types.TSchema[]): string {
+    return typeof schema.const === 'string' ? `'${schema.const.replace(/'/g, "\\'")}'` : schema.const.toString()
+  }
   // prettier-ignore
-  return (
-    Types.TypeGuard.TAny(schema) ? 'any' :
-    Types.TypeGuard.TArray(schema) ? `${Annotation(schema.items, references)}[]` :
-    Types.TypeGuard.TAsyncIterator(schema) ? `AsyncIterableIterator<${Annotation(schema.items, references)}>` :
-    Types.TypeGuard.TBigInt(schema) ? `bigint` :
-    Types.TypeGuard.TBoolean(schema) ? `boolean` :
-    Types.TypeGuard.TConstructor(schema) ? `new (${AnnotationParameters(schema.parameter, 0, references)}) => ${Annotation(schema.returns, references)}` :
-    Types.TypeGuard.TDate(schema) ? 'Date' :
-    Types.TypeGuard.TFunction(schema) ? `(${AnnotationParameters(schema.parameters, 0, references)}) => ${Annotation(schema.returns, references)}` :
-    Types.TypeGuard.TInteger(schema) ? 'number' :
-    Types.TypeGuard.TIntersect(schema) ? `(${AnnotationIntersect(schema.allOf, references)})` :
-    Types.TypeGuard.TIterator(schema) ? `IterableIterator<${Annotation(schema.items, references)}>` :
-    Types.TypeGuard.TLiteral(schema) ? `${AnnotationLiteral(schema, references)}` :
-    Types.TypeGuard.TNever(schema) ? `never` :
-    Types.TypeGuard.TNull(schema) ? `null` :
-    Types.TypeGuard.TNot(schema) ? 'unknown' :
-    Types.TypeGuard.TNumber(schema) ? 'number' :
-    Types.TypeGuard.TObject(schema) ? `{ ${AnnotationProperties(schema.properties, Object.getOwnPropertyNames(schema.properties), references)} }` :
-    Types.TypeGuard.TPromise(schema) ? `Promise<${Annotation(schema.item, references)}>` :
-    Types.TypeGuard.TRecord(schema) ? `${AnnotationRecord(schema, references)}` :
-    Types.TypeGuard.TRef(schema) ? `${Annotation(Deref(schema, references))}` :
-    Types.TypeGuard.TString(schema) ? 'string' :
-    Types.TypeGuard.TSymbol(schema) ? 'symbol' :
-    Types.TypeGuard.TThis(schema) ?  'unknown' : // requires named interface
-    Types.TypeGuard.TTuple(schema) ? `[${AnnotationTuple(schema.items || [], references)}]` :
-    Types.TypeGuard.TUndefined(schema) ? 'undefined' :
-    Types.TypeGuard.TUnion(schema) ? `${AnnotationUnion(schema.anyOf, references)}` :
-    Types.TypeGuard.TVoid(schema) ? `void` :
-    Types.TypeGuard.TUint8Array(schema) ? `Uint8Array` :
-    'unknown'
-  )
+  function Record(schema: Types.TRecord, references: Types.TSchema[]): string {
+    return ''
+  }
+  function Visit(schema: Types.TSchema, references: Types.TSchema[]): string {
+    // prettier-ignore
+    return (
+      Types.TypeGuard.TAny(schema) ? 'any' :
+      Types.TypeGuard.TArray(schema) ? `${Visit(schema.items, references)}[]` :
+      Types.TypeGuard.TAsyncIterator(schema) ? `AsyncIterableIterator<${Visit(schema.items, references)}>` :
+      Types.TypeGuard.TBigInt(schema) ? `bigint` :
+      Types.TypeGuard.TBoolean(schema) ? `boolean` :
+      Types.TypeGuard.TConstructor(schema) ? `new (${Parameters(schema.parameter, 0, references)}) => ${Visit(schema.returns, references)}` :
+      Types.TypeGuard.TDate(schema) ? 'Date' :
+      Types.TypeGuard.TFunction(schema) ? `(${Parameters(schema.parameters, 0, references)}) => ${Visit(schema.returns, references)}` :
+      Types.TypeGuard.TInteger(schema) ? 'number' :
+      Types.TypeGuard.TIntersect(schema) ? `(${Intersect(schema.allOf, references)})` :
+      Types.TypeGuard.TIterator(schema) ? `IterableIterator<${Visit(schema.items, references)}>` :
+      Types.TypeGuard.TLiteral(schema) ? `${Literal(schema, references)}` :
+      Types.TypeGuard.TNever(schema) ? `never` :
+      Types.TypeGuard.TNull(schema) ? `null` :
+      Types.TypeGuard.TNot(schema) ? 'unknown' :
+      Types.TypeGuard.TNumber(schema) ? 'number' :
+      Types.TypeGuard.TObject(schema) ? `{ ${Properties(schema.properties, Object.getOwnPropertyNames(schema.properties), references)} }` :
+      Types.TypeGuard.TPromise(schema) ? `Promise<${Visit(schema.item, references)}>` :
+      Types.TypeGuard.TRecord(schema) ? `${Record(schema, references)}` :
+      Types.TypeGuard.TRef(schema) ? `${Visit(Deref(schema, references), references)}` :
+      Types.TypeGuard.TString(schema) ? 'string' :
+      Types.TypeGuard.TSymbol(schema) ? 'symbol' :
+      Types.TypeGuard.TThis(schema) ?  'unknown' : // requires named interface
+      Types.TypeGuard.TTuple(schema) ? `[${Tuple(schema.items || [], references)}]` :
+      Types.TypeGuard.TUint8Array(schema) ? `Uint8Array` :
+      Types.TypeGuard.TUndefined(schema) ? 'undefined' :
+      Types.TypeGuard.TUnion(schema) ? `${Union(schema.anyOf, references)}` :
+      Types.TypeGuard.TVoid(schema) ? `void` :
+      'unknown'
+    )
+  }
+  /** Generates a TypeScript type annotation for the given schema */
+  export function Code(schema: Types.TSchema, references: Types.TSchema[] = []): string {
+    return Visit(schema, references)
+  }
 }
