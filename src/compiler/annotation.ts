@@ -29,8 +29,20 @@ THE SOFTWARE.
 import { Deref } from '../value/deref'
 import * as Types from '../typebox'
 
-/** Generates TypeScript Type Annotation from TypeBox types */
+// -------------------------------------------------------------------
+// TypeAnnotation
+// -------------------------------------------------------------------
+/** Generates TypeScript Type Annotations from TypeBox types */
 export namespace TypeAnnotation {
+  // -----------------------------------------------------------------
+  // Escape
+  // -----------------------------------------------------------------
+  function Escape(content: string) {
+    return content.replace(/'/g, "\\'")
+  }
+  // -----------------------------------------------------------------
+  // Types
+  // -----------------------------------------------------------------
   function Intersect(schema: Types.TSchema[], references: Types.TSchema[]): string {
     const [L, ...R] = schema
     // prettier-ignore
@@ -77,11 +89,21 @@ export namespace TypeAnnotation {
       : `param_${I}: ${Visit(L, references)}, ${Parameters(R, I + 1, references)}`
   }
   function Literal(schema: Types.TLiteral, references: Types.TSchema[]): string {
-    return typeof schema.const === 'string' ? `'${schema.const.replace(/'/g, "\\'")}'` : schema.const.toString()
+    return typeof schema.const === 'string' ? `'${Escape(schema.const)}'` : schema.const.toString()
   }
-  // prettier-ignore
   function Record(schema: Types.TRecord, references: Types.TSchema[]): string {
-    return ''
+    // prettier-ignore
+    return (
+      Types.PatternBooleanExact in schema.patternProperties ? `Record<boolean, ${Visit(schema.patternProperties[Types.PatternBooleanExact], references)}>` : 
+      Types.PatternNumberExact in schema.patternProperties ? `Record<number, ${Visit(schema.patternProperties[Types.PatternNumberExact], references)}>` : 
+      Types.PatternStringExact in schema.patternProperties ? `Record<string, ${Visit(schema.patternProperties[Types.PatternStringExact], references)}>` : 
+      `{}`
+    )
+  }
+  function TemplateLiteral(schema: Types.TTemplateLiteral, references: Types.TSchema[]) {
+    const E = Types.TemplateLiteralParser.ParseExact(schema.pattern)
+    if (!Types.TemplateLiteralFinite.Check(E)) return 'string'
+    return [...Types.TemplateLiteralGenerator.Generate(E)].map((literal) => `'${Escape(literal)}'`).join(' | ')
   }
   function Visit(schema: Types.TSchema, references: Types.TSchema[]): string {
     // prettier-ignore
@@ -108,6 +130,7 @@ export namespace TypeAnnotation {
       Types.TypeGuard.TRef(schema) ? `${Visit(Deref(schema, references), references)}` :
       Types.TypeGuard.TString(schema) ? 'string' :
       Types.TypeGuard.TSymbol(schema) ? 'symbol' :
+      Types.TypeGuard.TTemplateLiteral(schema) ? `${TemplateLiteral(schema, references)}` :
       Types.TypeGuard.TThis(schema) ?  'unknown' : // requires named interface
       Types.TypeGuard.TTuple(schema) ? `[${Tuple(schema.items || [], references)}]` :
       Types.TypeGuard.TUint8Array(schema) ? `Uint8Array` :
