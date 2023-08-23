@@ -3,25 +3,27 @@ import { TypeCompiler } from '@sinclair/typebox/compiler'
 import { Value, ValuePointer } from '@sinclair/typebox/value'
 import { Type, TypeGuard, Kind, Static, TSchema, Increment } from '@sinclair/typebox'
 
-import { Type as TD } from './typedef/index'
+import * as Types from '@sinclair/typebox'
+import { Deref } from '@sinclair/typebox/value/deref'
 
-const A = TD.Struct({
-  x: TD.Float32(),
-  y: TD.Boolean(),
-})
-const B = TD.Struct({
-  x: TD.Float32(),
-  y: TD.Boolean(),
-})
+const A = TypeCompiler.Code(
+  Type.Object({
+    number: Type.Number(),
+    negNumber: Type.Number(),
+    maxNumber: Type.Number(),
+    string: Type.String(),
+    longString: Type.String(),
+    boolean: Type.Boolean(),
+    deeplyNested: Type.Object(
+      {
+        foo: Type.String(),
+        num: Type.Number(),
+        bool: Type.Boolean(),
+      },
+      { $id: 'A' },
+    ),
+  }),
+  { language: 'typescript' },
+)
 
-const U = TD.DiscriminatedUnion([A, B], 'type', { timing: 123 })
-
-const T = Type.Transform(B)
-  .Decode((value) => 1)
-  .Encode((value) => ({ x: 1, y: 'boolean' })) // todo: investigate this
-
-const R = Value.Check(U, { x: 1, y: true, type: '0' })
-
-const Z = Value.Decode(U, { x: 1, y: true, type: '2' })
-
-console.log(Z)
+console.log(A)

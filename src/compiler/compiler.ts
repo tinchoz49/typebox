@@ -32,6 +32,7 @@ import { Errors, ValueErrorIterator } from '../errors/errors'
 import { TypeSystemPolicy } from '../system/index'
 import { Deref } from '../value/deref'
 import { Hash } from '../value/hash'
+import { Annotation } from './annotation'
 import * as Types from '../typebox'
 
 // -------------------------------------------------------------------
@@ -515,7 +516,7 @@ export namespace TypeCompiler {
   function CreateFunction(name: string, schema: Types.TSchema, references: Types.TSchema[], value: string, useHoisting: boolean = true): string {
     const [newline, pad] = ['\n', (length: number) => ''.padStart(length, ' ')]
     const parameter = CreateParameter('value', 'any')
-    const returns = CreateReturns('boolean')
+    const returns = CreateReturns(schema, references)
     const expression = [...Visit(schema, references, value, useHoisting)].map((expression) => `${pad(4)}${expression}`).join(` &&${newline}`)
     return `function ${name}(${parameter})${returns} {${newline}${pad(2)}return (${newline}${expression}${newline}${pad(2)})\n}`
   }
@@ -523,8 +524,8 @@ export namespace TypeCompiler {
     const annotation = state.language === 'typescript' ? `: ${type}` : ''
     return `${name}${annotation}`
   }
-  function CreateReturns(type: string) {
-    return state.language === 'typescript' ? `: ${type}` : ''
+  function CreateReturns(schema: Types.TSchema, references: Types.TSchema[]) {
+    return state.language === 'typescript' ? `: value is ${Annotation(schema, references)}` : ''
   }
   // -------------------------------------------------------------------
   // Compile
@@ -532,7 +533,7 @@ export namespace TypeCompiler {
   function Build<T extends Types.TSchema>(schema: T, references: Types.TSchema[], options: TypeCompilerCodegenOptions): string {
     const functionCode = CreateFunction('check', schema, references, 'value') // will populate functions and variables
     const parameter = CreateParameter('value', 'any')
-    const returns = CreateReturns('boolean')
+    const returns = CreateReturns(schema, references)
     const functions = [...state.functions.values()]
     const variables = [...state.variables.values()]
     // prettier-ignore

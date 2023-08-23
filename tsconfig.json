@@ -31,6 +31,9 @@
       "@sinclair/typebox/value/create": [
         "src/value/create.ts"
       ],
+      "@sinclair/typebox/value/deref": [
+        "src/value/deref.ts"
+      ],
       "@sinclair/typebox/value/delta": [
         "src/value/delta.ts"
       ],
