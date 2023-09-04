@@ -82,7 +82,7 @@ export type AssertType<T, E extends TSchema = TSchema> = T extends E ? T : TNeve
 // --------------------------------------------------------------------------
 // Modifiers
 // --------------------------------------------------------------------------
-export type TModifier = TOptional<TSchema> | TReadonly<TSchema>
+export type TReadonlyOptional<T extends TSchema> = TOptional<T> & TReadonly<T>
 export type TReadonly<T extends TSchema> = T & { [Readonly]: 'Readonly' }
 export type TOptional<T extends TSchema> = T & { [Optional]: 'Optional' }
 // --------------------------------------------------------------------------
@@ -192,7 +192,6 @@ export type TAnySchema =
   | TBoolean
   | TConstructor
   | TDate
-  | TEnum
   | TFunction
   | TInteger
   | TIntersect
@@ -323,7 +322,7 @@ export type TConstructorParameterArray<T extends readonly TSchema[], P extends u
 export interface TConstructor<T extends TSchema[] = TSchema[], U extends TSchema = TSchema> extends TSchema {
   [Kind]: 'Constructor'
   static: new (...param: TConstructorParameterArray<T, this['params']>) => Static<U, this['params']>
-  type: 'constructor'
+  type: 'Constructor'
   parameters: T
   returns: U
 }
@@ -378,15 +377,13 @@ export interface TDate extends TSchema, DateOptions {
 // --------------------------------------------------------------------------
 // TEnum
 // --------------------------------------------------------------------------
-export interface TEnumOption<T> {
-  type: 'number' | 'string'
-  const: T
-}
-export interface TEnum<T extends Record<string, string | number> = Record<string, string | number>> extends TSchema {
-  [Kind]: 'Union'
-  static: T[keyof T]
-  anyOf: TLiteral<T[keyof T]>[]
-}
+export type TEnumRecord = Record<TEnumKey, TEnumValue>
+export type TEnumValue = string | number
+export type TEnumKey = string
+export type TEnumToLiteralUnion<T extends TEnumValue> = T extends TEnumValue ? TLiteral<T> : never
+export type TEnumToLiteralTuple<T extends TEnumValue> = UnionToTuple<TEnumToLiteralUnion<T>>
+export type TEnumToUnion<T extends TEnumValue, R = UnionType<AssertRest<TEnumToLiteralTuple<T>>>> = R extends TLiteralString ? TNever : R // Note: Empty enum evaluates as TLiteralString
+export type TEnum<T extends TEnumValue> = Ensure<TEnumToUnion<T>>
 // --------------------------------------------------------------------------
 // TExtends
 // --------------------------------------------------------------------------
@@ -430,7 +427,7 @@ export type TFunctionParameters<T extends TSchema[], P extends unknown[]> = [...
 export interface TFunction<T extends TSchema[] = TSchema[], U extends TSchema = TSchema> extends TSchema {
   [Kind]: 'Function'
   static: (...param: TFunctionParameters<T, this['params']>) => Static<U, this['params']>
-  type: 'function'
+  type: 'Function'
   parameters: T
   returns: U
 }
@@ -685,7 +682,7 @@ export type TPick<T extends TSchema = TSchema, K extends keyof any = keyof any> 
 export interface TPromise<T extends TSchema = TSchema> extends TSchema {
   [Kind]: 'Promise'
   static: Promise<Static<T, this['params']>>
-  type: 'promise'
+  type: 'Promise'
   item: TSchema
 }
 // --------------------------------------------------------------------------
@@ -899,31 +896,34 @@ export interface TTemplateLiteral<T extends TTemplateLiteralKind[] = TTemplateLi
 // TTransform
 // --------------------------------------------------------------------------
 // prettier-ignore
-export type DecodeStaticProperties<T extends TProperties> = {
-  [K in keyof T]: DecodeStaticType<T[K]>
+export type DecodeProperties<T extends TProperties> = {
+  [K in keyof T]: DecodeType<T[K]>
 }
 // prettier-ignore
-export type DecodeStaticRest<T extends TSchema[]> = T extends [infer L, ...infer R]
-  ? [DecodeStaticType<AssertType<L>>, ...DecodeStaticRest<AssertRest<R>>]
+export type DecodeRest<T extends TSchema[]> = T extends [infer L extends TSchema, ...infer R extends TSchema[]]
+  ? [DecodeType<L>, ...DecodeRest<R>]
   : []
 // prettier-ignore
-export type DecodeStaticType<T extends TSchema> =
-  T extends TTransform<infer _, infer R>   ? TUnsafe<R> : 
-  T extends TArray<infer S> ? TArray<DecodeStaticType<S>> :
-  T extends TAsyncIterator<infer S> ? TAsyncIterator<DecodeStaticType<S>> :
-  T extends TConstructor<infer P, infer R> ? TConstructor<AssertRest<DecodeStaticRest<P>>, DecodeStaticType<R>> :
-  T extends TFunction<infer P, infer R> ? TFunction<AssertRest<DecodeStaticRest<P>>, DecodeStaticType<R>> :
-  T extends TIntersect<infer S> ? TIntersect<AssertRest<DecodeStaticRest<S>>> :
-  T extends TIterator<infer S> ? TIterator<DecodeStaticType<S>> :
-  T extends TNot<infer S> ? TNot<DecodeStaticType<S>> :
-  T extends TObject<infer S> ? TObject<Evaluate<DecodeStaticProperties<S>>> :
-  T extends TPromise<infer S> ? TPromise<DecodeStaticType<S>> :
-  T extends TRecord<infer K, infer S> ? TRecord<K, DecodeStaticType<S>> :
-  T extends TRecursive<infer S> ? TRecursive<DecodeStaticType<S>> :
-  T extends TRef<infer S> ? TRef<DecodeStaticType<S>> :
-  T extends TTuple<infer S> ? TTuple<AssertRest<DecodeStaticRest<S>>> :
-  T extends TUnion<infer S> ? TUnion<AssertRest<DecodeStaticRest<S>>> :
+export type DecodeType<T extends TSchema> = (
+  T extends TOptional<infer S extends TSchema> ? TOptional<DecodeType<S>> :
+  T extends TReadonly<infer S extends TSchema> ? TReadonly<DecodeType<S>> :
+  T extends TTransform<infer _, infer R> ? TUnsafe<R> :
+  T extends TArray<infer S extends TSchema> ? TArray<DecodeType<S>> :
+  T extends TAsyncIterator<infer S extends TSchema> ? TAsyncIterator<DecodeType<S>> :
+  T extends TConstructor<infer P extends TSchema[], infer R extends TSchema> ? TConstructor<P, DecodeType<R>> :
+  T extends TFunction<infer P extends TSchema[], infer R extends TSchema> ? TFunction<P, DecodeType<R>> :
+  T extends TIntersect<infer S extends TSchema[]> ? TIntersect<S> :
+  T extends TIterator<infer S extends TSchema> ? TIterator<DecodeType<S>> :
+  T extends TNot<infer S extends TSchema> ? TNot<DecodeType<S>> :
+  T extends TObject<infer S> ? TObject<Evaluate<DecodeProperties<S>>> :
+  T extends TPromise<infer S extends TSchema> ? TPromise<DecodeType<S>> :
+  T extends TRecord<infer K, infer S> ? TRecord<K, DecodeType<S>> :
+  T extends TRecursive<infer S extends TSchema> ? TRecursive<DecodeType<S>> :
+  T extends TRef<infer S extends TSchema> ? TRef<DecodeType<S>> :
+  T extends TTuple<infer S extends TSchema[]> ? TTuple<S> :
+  T extends TUnion<infer S extends TSchema[]> ? TUnion<S> :
   T
+)
 export type TransformFunction<T = any, U = any> = (value: T) => U
 export interface TransformOptions<I extends TSchema = TSchema, O extends unknown = unknown> {
   Decode: TransformFunction<StaticDecode<I>, O>
@@ -1018,7 +1018,7 @@ export interface TVoid extends TSchema {
 // Static<T>
 // --------------------------------------------------------------------------
 /** Creates the decoded static form for a TypeBox type */
-export type StaticDecode<T extends TSchema, P extends unknown[] = []> = Static<DecodeStaticType<T>, P>
+export type StaticDecode<T extends TSchema, P extends unknown[] = []> = Static<DecodeType<T>, P>
 /** Creates the encoded static form for a TypeBox type */
 export type StaticEncode<T extends TSchema, P extends unknown[] = []> = Static<T, P>
 /** Creates the static type for a TypeBox type */
@@ -1266,7 +1266,7 @@ export namespace TypeGuard {
     // prettier-ignore
     return (
       TKindOf(schema, 'Constructor') && 
-      schema.type === 'constructor' &&
+      schema.type === 'Constructor' &&
       IsOptionalString(schema.$id) && 
       ValueGuard.IsArray(schema.parameters) &&
       schema.parameters.every(schema => TSchema(schema)) &&
@@ -1291,7 +1291,7 @@ export namespace TypeGuard {
     // prettier-ignore
     return (
       TKindOf(schema, 'Function') &&
-      schema.type === 'function' &&
+      schema.type === 'Function' &&
       IsOptionalString(schema.$id) && 
       ValueGuard.IsArray(schema.parameters) && 
       schema.parameters.every(schema => TSchema(schema)) &&
@@ -2907,10 +2907,12 @@ export class TypeBuilder {
   protected Throw(message: string): never {
     throw new TypeBuilderError(message)
   }
-  /** `[Internal]` Discards a property key from the given schema */
-  protected Discard(schema: TSchema, key: PropertyKey): TSchema {
-    const { [key as any]: _, ...rest } = schema
-    return rest as TSchema
+  /** `[Internal]` Discards property keys from the given record type */
+  protected Discard(record: Record<PropertyKey, any>, keys: PropertyKey[]) {
+    return keys.reduce((acc, key) => {
+      const { [key as any]: _, ...rest } = acc
+      return rest
+    }, record) as any
   }
   /** `[Json]` Omits compositing symbols from this schema */
   public Strict<T extends TSchema>(schema: T): T {
@@ -2963,15 +2965,13 @@ export class JsonTypeBuilder extends TypeBuilder {
     return Type.Object(properties, options) as TComposite<T>
   }
   /** `[Json]` Creates a Enum type */
-  public Enum<T extends Record<string, string | number>>(item: T, options: SchemaOptions = {}): TEnum<T> {
+  public Enum<V extends TEnumValue, T extends Record<TEnumKey, V>>(item: T, options: SchemaOptions = {}): TEnum<T[keyof T]> {
+    if (ValueGuard.IsUndefined(item)) return this.Union([], options) as TEnum<T[keyof T]>
     // prettier-ignore
-    const values = Object.getOwnPropertyNames(item).filter((key) => isNaN(key as any)).map((key) => item[key]) as T[keyof T][]
-    // prettier-ignore
-    const anyOf = values.map((value) => ValueGuard.IsString(value) 
-      ? { [Kind]: 'Literal', type: 'string' as const, const: value } 
-      : { [Kind]: 'Literal', type: 'number' as const, const: value }
-    )
-    return this.Create({ ...options, [Kind]: 'Union', anyOf })
+    const values1 = Object.getOwnPropertyNames(item).filter((key) => isNaN(key as any)).map((key) => item[key]) as T[keyof T][]
+    const values2 = [...new Set(values1)] // distinct
+    const anyOf = values2.map((value) => Type.Literal(value))
+    return this.Union(anyOf, options) as TEnum<T[keyof T]>
   }
   /** `[Json]` Creates a Conditional type */
   public Extends<L extends TSchema, R extends TSchema, T extends TSchema, U extends TSchema>(left: L, right: R, trueType: T, falseType: U, options: SchemaOptions = {}): TExtends<L, R, T, U> {
@@ -3147,7 +3147,7 @@ export class JsonTypeBuilder extends TypeBuilder {
   public Omit(schema: TSchema, unresolved: any, options: SchemaOptions = {}): any {
     const keys = KeyArrayResolver.Resolve(unresolved)
     // prettier-ignore
-    return ObjectMap.Map(this.Discard(TypeClone.Type(schema), Transform), (object) => {
+    return ObjectMap.Map(this.Discard(TypeClone.Type(schema), ['$id', Transform]), (object) => {
       if (ValueGuard.IsArray(object.required)) {
         object.required = object.required.filter((key: string) => !keys.includes(key as any))
         if (object.required.length === 0) delete object.required
@@ -3161,11 +3161,11 @@ export class JsonTypeBuilder extends TypeBuilder {
   /** `[Json]` Constructs a type where all properties are optional */
   public Partial<T extends TSchema>(schema: T, options: ObjectOptions = {}): TPartial<T> {
     // prettier-ignore
-    return ObjectMap.Map(this.Discard(TypeClone.Type(schema), Transform), (object) => {
+    return ObjectMap.Map(this.Discard(TypeClone.Type(schema), ['$id', Transform]), (object) => {
       const properties = Object.getOwnPropertyNames(object.properties).reduce((acc, key) => {
         return { ...acc, [key]: this.Optional(object.properties[key]) }
       }, {} as TProperties)
-      return this.Object(properties, this.Discard(object, 'required') /* object used as options to retain other constraints */)
+      return this.Object(properties, this.Discard(object, ['required']) /* object used as options to retain other constraints */)
     }, options)
   }
   /** `[Json]` Constructs a type whose keys are picked from the given type */
@@ -3182,7 +3182,7 @@ export class JsonTypeBuilder extends TypeBuilder {
   public Pick(schema: TSchema, unresolved: any, options: SchemaOptions = {}): any {
     const keys = KeyArrayResolver.Resolve(unresolved)
     // prettier-ignore
-    return ObjectMap.Map(this.Discard(TypeClone.Type(schema), Transform), (object) => {
+    return ObjectMap.Map(this.Discard(TypeClone.Type(schema), ['$id', Transform]), (object) => {
       if (ValueGuard.IsArray(object.required)) {
         object.required = object.required.filter((key: any) => keys.includes(key))
         if (object.required.length === 0) delete object.required
@@ -3247,9 +3247,9 @@ export class JsonTypeBuilder extends TypeBuilder {
   /** `[Json]` Constructs a type where all properties are required */
   public Required<T extends TSchema>(schema: T, options: SchemaOptions = {}): TRequired<T> {
     // prettier-ignore
-    return ObjectMap.Map(this.Discard(TypeClone.Type(schema), Transform), (object) => {
+    return ObjectMap.Map(this.Discard(TypeClone.Type(schema), ['$id', Transform]), (object) => {
       const properties = Object.getOwnPropertyNames(object.properties).reduce((acc, key) => {
-        return { ...acc, [key]: this.Discard(object.properties[key], Optional) as TSchema }
+        return { ...acc, [key]: this.Discard(object.properties[key], [Optional]) as TSchema }
       }, {} as TProperties)
       return this.Object(properties, object /* object used as options to retain other constraints  */)
     }, options)
@@ -3362,7 +3362,7 @@ export class JavaScriptTypeBuilder extends JsonTypeBuilder {
   /** `[JavaScript]` Creates a Constructor type */
   public Constructor<T extends TSchema[], U extends TSchema>(parameters: [...T], returns: U, options?: SchemaOptions): TConstructor<T, U> {
     const [clonedParameters, clonedReturns] = [TypeClone.Rest(parameters), TypeClone.Type(returns)]
-    return this.Create({ ...options, [Kind]: 'Constructor', type: 'constructor', parameters: clonedParameters, returns: clonedReturns })
+    return this.Create({ ...options, [Kind]: 'Constructor', type: 'Constructor', parameters: clonedParameters, returns: clonedReturns })
   }
   /** `[JavaScript]` Creates a Const type from a JavaScript value */
   public Const<T>(value: T, options: SchemaOptions = {}): TConst<T> {
@@ -3406,7 +3406,7 @@ export class JavaScriptTypeBuilder extends JsonTypeBuilder {
   /** `[JavaScript]` Creates a Function type */
   public Function<T extends TSchema[], U extends TSchema>(parameters: [...T], returns: U, options?: SchemaOptions): TFunction<T, U> {
     const [clonedParameters, clonedReturns] = [TypeClone.Rest(parameters), TypeClone.Type(returns)]
-    return this.Create({ ...options, [Kind]: 'Function', type: 'function', parameters: clonedParameters, returns: clonedReturns })
+    return this.Create({ ...options, [Kind]: 'Function', type: 'Function', parameters: clonedParameters, returns: clonedReturns })
   }
   /** `[JavaScript]` Extracts the InstanceType from the given Constructor type */
   public InstanceType<T extends TConstructor<any[], any>>(schema: T, options: SchemaOptions = {}): TInstanceType<T> {

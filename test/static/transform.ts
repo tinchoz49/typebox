@@ -1,4 +1,4 @@
-import { Type, Static, StaticDecode, TObject, TNumber } from '@sinclair/typebox'
+import { Type, TSchema, Static, StaticDecode, TObject, TNumber } from '@sinclair/typebox'
 import { Expect } from './assert'
 {
   // string > number
@@ -84,7 +84,7 @@ import { Expect } from './assert'
     .Encode((value) => ({
       id: 'A',
       nodes: [
-        { id: 'B', nodes: [] }, 
+        { id: 'B', nodes: [] },
         { id: 'C', nodes: [] }
       ]
     }))
@@ -112,7 +112,7 @@ import { Expect } from './assert'
     .Encode((value) => ({
       id: 'A',
       nodes: [
-        { id: 'B', nodes: [] }, 
+        { id: 'B', nodes: [] },
         { id: 'C', nodes: [] }
       ]
     }))
@@ -160,8 +160,8 @@ import { Expect } from './assert'
   // null to typebox type
   // prettier-ignore
   const T = Type.Transform(Type.Null())
-    .Decode(value => Type.Object({ 
-      x: Type.Number(), 
+    .Decode(value => Type.Object({
+      x: Type.Number(),
       y: Type.Number(),
       z: Type.Number()
     }))
@@ -180,5 +180,74 @@ import { Expect } from './assert'
   //   x: number;
   //   y: number;
   //   z: number;
-  // } // lol
+  // }
+}
+{
+  // ensure decode as optional
+  // prettier-ignore
+  const T = Type.Object({
+    x: Type.Optional(Type.Number()),
+    y: Type.Optional(Type.Number())
+  })
+  Expect(T).ToStaticDecode<{ x?: number | undefined; y?: number | undefined }>()
+}
+{
+  // ensure decode as readonly
+  // prettier-ignore
+  const T = Type.Object({
+    x: Type.Readonly(Type.Number()),
+    y: Type.Readonly(Type.Number())
+  })
+  Expect(T).ToStaticDecode<{ readonly x: number; readonly y: number }>()
+}
+{
+  // ensure decode as optional union
+  // prettier-ignore
+  const T = Type.Object({
+    x: Type.Optional(Type.Union([
+      Type.String(),
+      Type.Number()
+    ]))
+  })
+  Expect(T).ToStaticDecode<{ x?: string | number | undefined }>()
+}
+{
+  // should decode within generic function context
+  // https://github.com/sinclairzx81/typebox/issues/554
+  // prettier-ignore
+  const ArrayOrSingle = <T extends TSchema>(schema: T) =>
+    Type.Transform(Type.Union([schema, Type.Array(schema)]))
+      .Decode((value) => (Array.isArray(value) ? value : [value]))
+      .Encode((value) => (value.length === 1 ? value[0] : value) as Static<T>[]);
+  const T = ArrayOrSingle(Type.String())
+  Expect(T).ToStaticDecode<string[]>()
+}
+{
+  // should correctly decode record keys
+  // https://github.com/sinclairzx81/typebox/issues/555
+  // prettier-ignore
+  const T = Type.Object({
+    x: Type.Optional(Type.Record(Type.Number(), Type.String()))
+  })
+  type A = StaticDecode<typeof T>
+  type Test<A, E> = E extends A ? true : false
+  type E1 = Test<A, {}>
+  type E2 = Test<A, { x: undefined }>
+  type E3 = Test<A, { x: { 1: '' } }>
+  type E4 = Test<A, { x: { 1: 1 } }>
+  type E5 = Test<A, { x: { x: 1 } }>
+  // assignment
+  const E1: E1 = true
+  const E2: E2 = true
+  const E3: E3 = true
+  const E4: E4 = false
+  const E5: E5 = true
+}
+{
+  // should correctly decode array
+  // https://github.com/sinclairzx81/typebox/issues/561
+  const T = Type.Object({
+    x: Type.Array(Type.Object({ y: Type.String() })),
+  })
+  Expect(T).ToStaticDecode<{ x: { y: string }[] }>()
 }

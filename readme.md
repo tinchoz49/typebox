@@ -58,11 +58,11 @@ type T = Static<typeof T>                            // type T = {
 
 ## Overview
 
-TypeBox is a runtime type builder that creates Json Schema objects that infer as TypeScript types. The schemas produced by this library are designed to match the static type checking rules of the TypeScript compiler. TypeBox offers a unified type that can be statically checked by TypeScript or runtime checked using standard Json Schema validation.
+TypeBox is a runtime type builder that creates Json Schema objects that infer as TypeScript types. The schemas produced by this library are designed to match the static type checking rules of the TypeScript compiler. TypeBox offers a unified type that can be statically checked by TypeScript or runtime asserted using standard Json Schema validation.
 
-TypeBox is built upon industry standard specifications. It offers reflectable, serializable and publishable types as standard, a fully extensible type system capable of supporting multiple schema specifications, includes a high performance validation compiler, offers various tools for working with dynamic data and provides detailed structured error reporting. 
+TypeBox uses industry standard schematics for runtime type representation; enabling types to be reflected, serialized and published directly. Its type system is fully extensible and able to support type representation for multiple schema specifications. It also provides a high performance validation compiler, various tools for working with dynamic data and offers detailed structured error reporting. 
 
-TypeBox can be used as a simple tool to build up complex schemas or integrated into applications to enable high performance runtime validation for data received over the wire.
+TypeBox can be used as a simple tool to build up complex schemas or integrated into applications and frameworks to enable high performance runtime type checking for data received over the wire.
 
 License MIT
 
@@ -278,7 +278,7 @@ The following table lists the supported Json types. These types are fully compat
 │ const T = Type.Tuple([         │ type T = [number, number]   │ const T = {                    │
 │   Type.Number(),               │                             │   type: 'array',               │
 │   Type.Number()                │                             │   items: [{                    │
-│ ])                             │                             │      type: 'number'            │
+│ ])                             │                             │     type: 'number'             │
 │                                │                             │   }, {                         │
 │                                │                             │     type: 'number'             │
 │                                │                             │   }],                          │
@@ -313,9 +313,9 @@ The following table lists the supported Json types. These types are fully compat
 ├────────────────────────────────┼─────────────────────────────┼────────────────────────────────┤
 │ const T = Type.Union([         │ type T = string | number    │ const T = {                    │
 │   Type.String(),               │                             │   anyOf: [{                    │
-│   Type.Number()                │                             │      type: 'string'            │
+│   Type.Number()                │                             │     type: 'string'             │
 │ ])                             │                             │   }, {                         │
-│                                │                             │      type: 'number'            │
+│                                │                             │     type: 'number'             │
 │                                │                             │   }]                           │
 │                                │                             │ }                              │
 │                                │                             │                                │
@@ -473,10 +473,10 @@ The following table lists the supported Json types. These types are fully compat
 ├────────────────────────────────┼─────────────────────────────┼────────────────────────────────┤
 │ const A = Type.Tuple([         │ type A = [0, 1]             │ const T = {                    │
 │   Type.Literal(0),             │ type B = [2, 3]             │   type: 'array',               │
-│   Type.Literal(1)              │ type T = [...A, ...B]       │   items: [                     │
-│ ])                             │                             │     { const: 0 },              │
-│ const B = Type.Tuple([         │                             │     { const: 1 },              │
-|   Type.Literal(2),             │                             │     { const: 2 },              │
+│   Type.Literal(1)              │ type T = [                  │   items: [                     │
+│ ])                             │   ...A,                     │     { const: 0 },              │
+│ const B = Type.Tuple([         │   ...B                      │     { const: 1 },              │
+|   Type.Literal(2),             │ ]                           │     { const: 2 },              │
 |   Type.Literal(3)              │                             │     { const: 3 }               │
 │ ])                             │                             │   ],                           │
 │ const T = Type.Tuple([         │                             │   additionalItems: false,      │
@@ -486,26 +486,26 @@ The following table lists the supported Json types. These types are fully compat
 │                                │                             │                                │
 ├────────────────────────────────┼─────────────────────────────┼────────────────────────────────┤
 │ const T = Type.Uncapitalize(   │ type T = Uncapitalize<      │ const T = {                    │
-│   Type.Literal('Hello')        │   'Hello'                   │    type: 'string',             │
-│ )                              │ >                           │    const: 'hello'              │
+│   Type.Literal('Hello')        │   'Hello'                   │   type: 'string',              │
+│ )                              │ >                           │   const: 'hello'               │
 │                                │                             │ }                              │
 │                                │                             │                                │
 ├────────────────────────────────┼─────────────────────────────┼────────────────────────────────┤
 │ const T = Type.Capitalize(     │ type T = Capitalize<        │ const T = {                    │
-│   Type.Literal('hello')        │   'hello'                   │    type: 'string',             │
-│ )                              │ >                           │    const: 'Hello'              │
+│   Type.Literal('hello')        │   'hello'                   │   type: 'string',              │
+│ )                              │ >                           │   const: 'Hello'               │
 │                                │                             │ }                              │
 │                                │                             │                                │
 ├────────────────────────────────┼─────────────────────────────┼────────────────────────────────┤
 │ const T = Type.Uppercase(      │ type T = Uppercase<         │ const T = {                    │
-│   Type.Literal('hello')        │   'hello'                   │    type: 'string',             │
-│ )                              │ >                           │    const: 'HELLO'              │
+│   Type.Literal('hello')        │   'hello'                   │   type: 'string',              │
+│ )                              │ >                           │   const: 'HELLO'               │
 │                                │                             │ }                              │
 │                                │                             │                                │
 ├────────────────────────────────┼─────────────────────────────┼────────────────────────────────┤
 │ const T = Type.Lowercase(      │ type T = Lowercase<         │ const T = {                    │
-│   Type.Literal('HELLO')        │   'HELLO'                   │    type: 'string',             │
-│ )                              │ >                           │    const: 'hello'              │
+│   Type.Literal('HELLO')        │   'HELLO'                   │   type: 'string',              │
+│ )                              │ >                           │   const: 'hello'               │
 │                                │                             │ }                              │
 │                                │                             │                                │
 ├────────────────────────────────┼─────────────────────────────┼────────────────────────────────┤
@@ -534,26 +534,26 @@ TypeBox provides an extended type set that can be used to create schematics for 
 │                                │                             │                                │
 ├────────────────────────────────┼─────────────────────────────┼────────────────────────────────┤
 │ const T = Type.Constructor([   │ type T = new (              │ const T = {                    │
-│   Type.String(),               │  arg0: string,              │   type: 'constructor',         │
+│   Type.String(),               │  arg0: string,              │   type: 'Constructor',         │
 │   Type.Number()                │  arg0: number               │   parameters: [{               │
 │ ], Type.Boolean())             │ ) => boolean                │     type: 'string'             │
 │                                │                             │   }, {                         │
 │                                │                             │     type: 'number'             │
 │                                │                             │   }],                          │
-│                                │                             │   return: {                    │
+│                                │                             │   returns: {                   │
 │                                │                             │     type: 'boolean'            │
 │                                │                             │   }                            │
 │                                │                             │ }                              │
 │                                │                             │                                │
 ├────────────────────────────────┼─────────────────────────────┼────────────────────────────────┤
 │ const T = Type.Function([      │ type T = (                  │ const T = {                    │
-|   Type.String(),               │  arg0: string,              │   type: 'function',            │
+|   Type.String(),               │  arg0: string,              │   type: 'Function',            │
 │   Type.Number()                │  arg1: number               │   parameters: [{               │
 │ ], Type.Boolean())             │ ) => boolean                │     type: 'string'             │
 │                                │                             │   }, {                         │
 │                                │                             │     type: 'number'             │
 │                                │                             │   }],                          │
-│                                │                             │   return: {                    │
+│                                │                             │   returns: {                   │
 │                                │                             │     type: 'boolean'            │
 │                                │                             │   }                            │
 │                                │                             │ }                              │
@@ -960,7 +960,7 @@ const U = Type.Union(R)                              // const U = {
 
 ### Transform Types
 
-TypeBox supports bi-directional decode and encode with Transform types. These types are designed to operate with the Value and TypeCompiler Encode and Decode functions. Transform types are useful to convert Json encoded values into constructs more natural to JavaScript. The following creates a Transform type to convert between Date and number using the Value module.
+TypeBox supports value decoding and encoding with Transform types. These types work in tandem with the Encode and Decode functions available on the Value and TypeCompiler modules. Transform types can be used to convert Json encoded values into constructs more natural to JavaScript. The following creates a Transform type to decode numbers into Dates using the Value module.
 
 ```typescript
 import { Value } from '@sinclair/typebox/value'
@@ -1643,13 +1643,16 @@ The following is a list of community packages that offer general tooling, extend
 
 | Package   |  Description |
 | ------------- | ------------- |
+| [drizzle-typebox](https://www.npmjs.com/package/drizzle-typebox) | Generates TypeBox types from Drizzle ORM schemas |
 | [elysia](https://github.com/elysiajs/elysia) | Fast and friendly Bun web framework |
 | [fastify-type-provider-typebox](https://github.com/fastify/fastify-type-provider-typebox) | Fastify TypeBox integration with the Fastify Type Provider |
 | [feathersjs](https://github.com/feathersjs/feathers) | The API and real-time application framework |
 | [fetch-typebox](https://github.com/erfanium/fetch-typebox) | Drop-in replacement for fetch that brings easy integration with TypeBox |
+| [h3-typebox](https://github.com/kevinmarrec/h3-typebox) | Schema validation utilities for h3 using TypeBox & Ajv |
 | [schema2typebox](https://github.com/xddq/schema2typebox)  | Creating TypeBox code from Json Schemas |
 | [ts2typebox](https://github.com/xddq/ts2typebox) | Creating TypeBox code from Typescript types |
 | [typebox-client](https://github.com/flodlc/typebox-client) | Type safe http client library for Fastify |
+| [typebox-form-parser](https://github.com/jtlapp/typebox-form-parser) | Parses form and query data based on TypeBox schemas |
 | [typebox-validators](https://github.com/jtlapp/typebox-validators) | Advanced validators supporting discriminated and heterogeneous unions |
 
 <a name='benchmark'></a>
