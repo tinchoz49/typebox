@@ -30,10 +30,10 @@ import { Deref } from '../value/deref'
 import * as Types from '../typebox'
 
 // -------------------------------------------------------------------
-// TypeAnnotation
+// Annotation
 // -------------------------------------------------------------------
 /** Generates TypeScript Type Annotations from TypeBox types */
-export namespace TypeAnnotation {
+export namespace Annotation {
   // -----------------------------------------------------------------
   // Escape
   // -----------------------------------------------------------------
@@ -60,9 +60,9 @@ export namespace TypeAnnotation {
   function Tuple(schema: Types.TSchema[], references: Types.TSchema[]): string {
     const [L, ...R] = schema
     // prettier-ignore
-    return R.length === 0
-      ? `${Visit(L, references)}`
-      : `${Visit(L, references)}, ${Union(R, references)}`
+    return R.length > 0
+      ? `${Visit(L, references)}, ${Tuple(R, references)}`
+      : ``
   }
   function Property(schema: Types.TProperties, K: string, references: Types.TSchema[]): string {
     const TK = schema[K]
@@ -140,7 +140,7 @@ export namespace TypeAnnotation {
       'unknown'
     )
   }
-  /** Generates a TypeScript type annotation for the given schema */
+  /** Generates a TypeScript annotation for the given schema */
   export function Code(schema: Types.TSchema, references: Types.TSchema[] = []): string {
     return Visit(schema, references)
   }

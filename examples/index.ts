@@ -1,15 +1,17 @@
 import { TypeSystem } from '@sinclair/typebox/system'
-import { TypeCompiler, TypeAnnotation } from '@sinclair/typebox/compiler'
+import { TypeCompiler, Annotation } from '@sinclair/typebox/compiler'
 import { Value, ValuePointer } from '@sinclair/typebox/value'
 import { Type, TypeGuard, Kind, Static, TSchema, Increment } from '@sinclair/typebox'
 
-const T = Type.TemplateLiteral('hello${1|2}${1|2}${1|2}${1|2}${1|2}')
-
-const A = Type.Object({
-  x: T,
-  y: Type.Tuple([T, T]),
+const T = Type.Object({
+  x: Type.Number(),
+  y: Type.Number(),
+  z: Type.Number(),
+  w: Type.Array(
+    Type.Object({
+      x: Type.Union([Type.String(), Type.Number()], { $id: 'A' }),
+    }),
+  ),
 })
 
-const X = TypeAnnotation.Code(A)
-
-console.log(X)
+console.log(TypeCompiler.Code(T, { language: 'typescript' }))

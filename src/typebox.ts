@@ -2501,6 +2501,48 @@ export namespace ObjectMap {
   }
 }
 // --------------------------------------------------------------------------
+// ConstResolver
+// --------------------------------------------------------------------------
+export namespace ConstResolver {
+  function ConstRest(rest: unknown[]): TSchema[] {
+    // prettier-ignore
+    return (rest.length === 0 ? [] : (() => {
+      const [L, ...R] = rest
+      return [ConstType(L), ...ConstRest(R)]
+    })())
+  }
+  function ConstProperties(value: Record<PropertyKey, unknown>): TProperties {
+    // prettier-ignore
+    return Object.getOwnPropertyNames(value).reduce((acc, key) => {
+      return { ...acc, [key]: Type.Readonly(ConstType(value[key])) }
+    }, {})
+  }
+  function ConstType(value: unknown): TSchema {
+    return (
+      // prettier-ignore
+      ValueGuard.IsArray(value) ? Type.Tuple(ConstRest(value)) :
+      ValueGuard.IsUint8Array(value) ? Type.Uint8Array() :
+      ValueGuard.IsDate(value) ?  Type.Date() :
+      ValueGuard.IsObject(value) ? Type.Object(ConstProperties(value)) :
+      ValueGuard.IsAsyncIterator(value) ? Type.AsyncIterator(Type.Unknown()) :
+      ValueGuard.IsIterator(value) ? Type.Iterator(Type.Unknown()) :
+      ValueGuard.IsFunction(value) ? Type.Function([], Type.Unknown()) :
+      ValueGuard.IsUndefined(value) ? Type.Undefined() :
+      ValueGuard.IsNull(value) ? Type.Null() :
+      ValueGuard.IsSymbol(value) ? Type.Symbol() :
+      ValueGuard.IsBigInt(value) ? Type.BigInt() :
+      ValueGuard.IsNumber(value) ? Type.Literal(value) :
+      ValueGuard.IsBoolean(value) ? Type.Literal(value) :
+      ValueGuard.IsString(value) ? Type.Literal(value) :
+      Type.Never()
+    )
+  }
+  /** Resolves a const type from the given value */
+  export function Resolve(value: unknown) {
+    return ConstType(value)
+  }
+}
+// --------------------------------------------------------------------------
 // KeyResolver
 // --------------------------------------------------------------------------
 export interface KeyResolverOptions {
@@ -3366,38 +3408,7 @@ export class JavaScriptTypeBuilder extends JsonTypeBuilder {
   }
   /** `[JavaScript]` Creates a Const type from a JavaScript value */
   public Const<T>(value: T, options: SchemaOptions = {}): TConst<T> {
-    // prettier-ignore
-    const ConstRest = (rest: unknown[]): TSchema[] => {
-      return (rest.length === 0 ? [] : (() => {
-        const [L, ...R] = rest
-        return [ConstType(L), ...ConstRest(R)]
-      })()) 
-    }
-    // prettier-ignore
-    const ConstProperties = (value: Record<PropertyKey, unknown>): TProperties => {
-      return Object.getOwnPropertyNames(value).reduce((acc, key) => {
-        return { ...acc, [key]: this.Readonly(ConstType(value[key])) }
-      }, {})
-    }
-    // prettier-ignore
-    const ConstType = (value: unknown): TSchema => (
-      ValueGuard.IsArray(value) ? this.Tuple(ConstRest(value)) :
-      ValueGuard.IsUint8Array(value) ? this.Uint8Array() :
-      ValueGuard.IsDate(value) ?  this.Date() :
-      ValueGuard.IsObject(value) ? this.Object(ConstProperties(value)) :
-      ValueGuard.IsAsyncIterator(value) ? this.AsyncIterator(Type.Unknown()) :
-      ValueGuard.IsIterator(value) ? this.Iterator(Type.Unknown()) :
-      ValueGuard.IsFunction(value) ? this.Function([], Type.Unknown()) :
-      ValueGuard.IsUndefined(value) ? this.Undefined() :
-      ValueGuard.IsNull(value) ? this.Null() :
-      ValueGuard.IsSymbol(value) ? this.Symbol() :
-      ValueGuard.IsBigInt(value) ? this.BigInt() :
-      ValueGuard.IsNumber(value) ? this.Literal(value) :
-      ValueGuard.IsBoolean(value) ? this.Literal(value) :
-      ValueGuard.IsString(value) ? this.Literal(value) :
-      this.Never()
-    )
-    return TypeClone.Type(ConstType(value), options) as TConst<T>
+    return TypeClone.Type(ConstResolver.Resolve(value), options) as TConst<T>
   }
   /** `[JavaScript]` Creates a Date type */
   public Date(options: DateOptions = {}): TDate {
